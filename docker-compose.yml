@@ -1,0 +1,12 @@
+version: "3.0"
+
+services:
+  dbeaver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dbeaver-test
+    env_file: .env
+    ports:
+      - "6800:5900"
+    restart: always
