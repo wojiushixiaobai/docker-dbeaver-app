@@ -65,8 +65,7 @@ RUN set -ex \
 RUN --mount=type=cache,target=/root/.cache \
     set -ex \
     && python3 -m venv /opt/py3 \
-    && . /opt/py3/bin/activate \
-    && pip install selenium==4.4.0
+    && . /opt/py3/bin/activate
 
 WORKDIR /opt
 
