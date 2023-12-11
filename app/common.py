@@ -3,23 +3,48 @@ import base64
 import json
 import locale
 import os
-import subprocess
 import sys
 import time
-from threading import Thread
+
+_blockInput = None
+_messageBox = None
 
 
-class DictObj(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for key, val in self.items():
+
+def block_input():
+    if _blockInput:
+        _blockInput(True)
+
+
+def unblock_input():
+    if _blockInput:
+        _blockInput(False)
+
+
+def decode_content(content: bytes) -> str:
+    for encoding_name in ['utf-8', 'gbk', 'gb2312']:
+        try:
+            return content.decode(encoding_name)
+        except Exception as e:
+            print(e)
+    encoding_name = locale.getpreferredencoding()
+    return content.decode(encoding_name)
+
+
+def notify_err_message(msg):
+    if _messageBox:
+        _messageBox(msg, 'Error')
+
+
+
+class DictObj:
+    def __init__(self, in_dict: dict):
+        assert isinstance(in_dict, dict)
+        for key, val in in_dict.items():
             if isinstance(val, (list, tuple)):
                 setattr(self, key, [DictObj(x) if isinstance(x, dict) else x for x in val])
             else:
                 setattr(self, key, DictObj(val) if isinstance(val, dict) else val)
-
-    def __getattr__(self, item):
-        return self.get(item, None)
 
 
 class User(DictObj):
@@ -28,20 +53,13 @@ class User(DictObj):
     username: str
 
 
-class Step(DictObj):
-    step: int
-    target: str
-    command: str
-    value: str
-
-
 class Specific(DictObj):
     # web
     autofill: str
     username_selector: str
     password_selector: str
     submit_selector: str
-    script: list[Step]
+    script: list
 
     # database
     db_name: str
@@ -83,36 +101,29 @@ class Account(DictObj):
     name: str
     username: str
     secret: str
+    privileged: bool
     secret_type: LabelValue
 
 
-class ProtocolSetting(DictObj):
-    autofill: str
-    username_selector: str
-    password_selector: str
-    submit_selector: str
-    script: list[Step]
-    safe_mode: bool
-
-
-class PlatformProtocolSetting(DictObj):
-    name: str
-    port: int
-    setting: ProtocolSetting
-
-
 class Platform(DictObj):
-    id: str
+    charset: str
     name: str
     charset: LabelValue
     type: LabelValue
-    protocols: list[PlatformProtocolSetting]
 
-    def get_protocol_setting(self, protocol):
-        for item in self.protocols:
-            if item.name == protocol:
-                return item.setting
-        return None
+
+class Gateway(DictObj):
+    id: str
+    name: str
+    address: str
+    port: int
+    protocols: list[Protocol]
+    account: Account
+
+
+class TinkerForward(DictObj):
+    host: str
+    port: int
 
 
 class Manifest(DictObj):
@@ -162,6 +173,14 @@ class BaseApplication(abc.ABC):
         self.asset = Asset(kwargs.get('asset', {}))
         self.account = Account(kwargs.get('account', {}))
         self.platform = Platform(kwargs.get('platform', {}))
+        self.gateway = None
+        self.tinker_forward = None
+        gateway = kwargs.get('gateway')
+        tinker_forward = kwargs.get('tinker_forward')
+        if gateway:
+            self.gateway = Gateway(gateway)
+        if tinker_forward:
+            self.tinker_forward = TinkerForward(tinker_forward)
 
     @abc.abstractmethod
     def run(self):
