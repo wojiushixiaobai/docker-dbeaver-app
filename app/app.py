@@ -116,7 +116,7 @@ class AppletApplication(BaseApplication):
                         f'host={self.host}|' \
                         f'port={self.port}|' \
                         f'database={self.db}|' \
-                        f'"user={self.username}"|' \
+                        f'user={self.username}|' \
                         f'password={self.password}|' \
                         f'save=false|' \
                         f'connect=true'
